@@ -13,8 +13,55 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        
+        let queueConcurrent = DispatchQueue(label: "com.one.concurrent", qos: .userInitiated, attributes: .concurrent)
+        queueConcurrent.sync {
+            print("outside \t \(Thread.current)")
+            queueConcurrent.sync {
+                print("inside \t \(Thread.current)")
+                let list = [Int](40...60)
+                list.enumerated().forEach{
+                    print("\($0) : \($1)")
+                }
+            }
+            let list = [Int](1...20)
+            list.enumerated().forEach{
+                print("\($0) : \($1)")
+            }
+        }
+        print("outside \t \(Thread.current)")
 
-        asynNumberUnderControl()
+        queueConcurrent.async {
+            print("outside \t \(Thread.current)")
+            queueConcurrent.sync {
+                print("inside \t \(Thread.current)")
+                let list = [Int](40...60)
+                list.enumerated().forEach{
+                    print("\($0) : \($1)")
+                }
+            }
+            let list = [Int](1...20)
+            list.enumerated().forEach{
+                print("\($0) : \($1)")
+            }
+        }
+        print("--outside \t \(Thread.current)")
+        
+        queueConcurrent.sync {
+            print("outside \t \(Thread.current)")
+            queueConcurrent.async {
+                print("inside \t \(Thread.current)")
+                let list = [Int](40...60)
+                list.enumerated().forEach{
+                    print("\($0) : \($1)")
+                }
+            }
+            let list = [Int](1...20)
+            list.enumerated().forEach{
+                print("\($0) : \($1)")
+            }
+        }
+        print("**outside \t \(Thread.current)")
         
     }
     
@@ -22,6 +69,47 @@ class ViewController: UIViewController {
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+    }
+    
+    func queueSerial() {
+        // 串行队列，同步任务
+        let queueSerial = DispatchQueue(label: "com.one.serial", qos: .userInitiated)
+        queueSerial.sync {
+            print("inside \t \(Thread.current)")
+        }
+        print("outside \t \(Thread.current)")
+        
+        // 串行，同步套异步
+        queueSerial.sync {
+            print("outside \t \(Thread.current)")
+            // 串行队列，同步任务嵌套，报错永远无法执行inside方法，
+            // 因为外层同步任务阻塞串行队列，内部同步任务无法执行，因为外部的同步任务还没有执行结束，♻️
+            // queueSerial.sync {
+            // 内部的异步
+            queueSerial.async {
+                print("inside \t \(Thread.current)")
+            }
+            let list = [Int](1...20)
+            list.enumerated().forEach{
+                print("\($0) : \($1)")
+            }
+        }
+        print("outside \t \(Thread.current)")
+        
+        // 串行，异步套同步
+        queueSerial.async {
+            print("outside \t \(Thread.current)")
+            // 内层同步任务不能执行，以为异步任务已经开始，在串行队列里，任务没有执行完毕是不会开启另一个任务的
+            // queueSerial.sync {
+            queueSerial.async {
+                print("inside \t \(Thread.current)")
+            }
+            let list = [Int](1...20)
+            list.enumerated().forEach{
+                print("\($0) : \($1)")
+            }
+        }
+        print("outside \t \(Thread.current)")
     }
     
     func asynNumberUnderControl() {
