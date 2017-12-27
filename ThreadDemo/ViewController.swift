@@ -13,7 +13,53 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        let list = [Int](100...110)
+        let queueSerial = DispatchQueue(label: "com.one.serial", qos: .userInitiated)
+        let queueConcurrent = DispatchQueue(label: "com.one.concurrent", qos: .userInitiated, attributes: .concurrent)
+        list.enumerated().forEach({ (offset, element) in
+            queueSerial.async {
+                queueConcurrent.async {
+                    print("\(Thread.current) ",element)
+                }
+            }
+        })
         
+        let semaphore = DispatchSemaphore(value: 2)
+        let group = DispatchGroup()
+        
+        list.enumerated().forEach({ (offset, element) in
+            semaphore.wait()
+            group.enter()
+            queueSerial.async {
+                queueConcurrent.async {
+                    print("\(Thread.current)- ",element)
+                    sleep(3)
+                    queueConcurrent.async {
+                        print("\(Thread.current)* ",element)
+                        sleep(3)
+                    }
+                    print("\(Thread.current)+ ",element)
+                    // group.leave()
+                    semaphore.signal()
+                }
+                group.leave()
+            }
+        })
+        
+        group.notify(queue: .main) {
+            // Can run before syncTask1 completes - DON'T DO THIS
+            print("complete")
+        }
+        
+    }
+    
+
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+    
+    func queueConcurrent() {
         let queueConcurrent = DispatchQueue(label: "com.one.concurrent", qos: .userInitiated, attributes: .concurrent)
         queueConcurrent.sync {
             print("outside \t \(Thread.current)")
@@ -30,7 +76,7 @@ class ViewController: UIViewController {
             }
         }
         print("outside \t \(Thread.current)")
-
+        
         queueConcurrent.async {
             print("outside \t \(Thread.current)")
             queueConcurrent.sync {
@@ -62,13 +108,6 @@ class ViewController: UIViewController {
             }
         }
         print("**outside \t \(Thread.current)")
-        
-    }
-    
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
     
     func queueSerial() {
